@@ -1,4 +1,3 @@
-// lib/screens/call_screen.dart
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 import '../services/livekit_service.dart';
@@ -24,7 +23,6 @@ class _CallScreenState extends State<CallScreen> {
   void initState() {
     super.initState();
 
-    // If room already connected, create listeners immediately.
     if (_room != null) {
       _listener = _room!.createListener();
       _setupListeners();
@@ -35,9 +33,6 @@ class _CallScreenState extends State<CallScreen> {
         _isCameraOff = !local.isCameraEnabled();
         _isMicMuted = !local.isMicrophoneEnabled();
       }
-    } else {
-      // Room not present (shouldn't normally happen) — show waiting UI
-      debugPrint('⚠️ CallScreen opened but LiveKit room is null');
     }
   }
 
@@ -56,13 +51,12 @@ class _CallScreenState extends State<CallScreen> {
   void _updateParticipants() {
     if (!mounted) return;
 
-    final remotes = _room?.remoteParticipants.values.toList() ?? [];
-
     setState(() {
-      _participants = [
-        if (_room?.localParticipant != null) _room!.localParticipant!,
-        ...remotes
-      ];
+      _participants = _room?.remoteParticipants.values.toList() ?? [];
+      if (_room?.localParticipant != null) {
+        _participants.remove(_room!.localParticipant);
+        _participants.insert(0, _room!.localParticipant!);
+      }
     });
   }
 
@@ -78,7 +72,7 @@ class _CallScreenState extends State<CallScreen> {
 
     final newState = !_isMicMuted;
     await local.setMicrophoneEnabled(newState);
-    setState(() => _isMicMuted = newState);
+    setState(() => _isMicMuted = !newState);
   }
 
   Future<void> _toggleCamera() async {
@@ -98,26 +92,39 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // **STEP 2: SELF-PROTECTING WRAPPER - Blocks ALL parent scrolling**
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Colors.black,
       body: ScrollConfiguration(
+        // **DISABLES ALL SCROLLING GLOBALLY for this screen**
         behavior: ScrollConfiguration.of(context).copyWith(
           scrollbars: false,
           overscroll: false,
           physics: const NeverScrollableScrollPhysics(),
         ),
         child: Center(
+          // **STEP 1: FIXED SIZE BOX - Never exceeds viewport**
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 650),
+            constraints: const BoxConstraints(
+              maxWidth: 480, // Fixed width - fits any laptop
+              maxHeight: 650, // Fixed height - no scroll possible
+            ),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.grey[900],
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 30)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 30,
+                    spreadRadius: 0,
+                  ),
+                ],
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize:
+                    MainAxisSize.min, // Never grows beyond constraints
                 children: [
                   // Header
                   Container(
@@ -125,29 +132,53 @@ class _CallScreenState extends State<CallScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
                       color: Colors.black87,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('${widget.callType.toUpperCase()} CALL',
-                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        IconButton(icon: const Icon(Icons.close, color: Colors.white70, size: 24), onPressed: _hangUp),
+                        Text(
+                          '${widget.callType.toUpperCase()} CALL',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white70,
+                            size: 24,
+                          ),
+                          onPressed: _hangUp,
+                        ),
                       ],
                     ),
                   ),
 
-                  // Main content
+                  // Main content area
                   Expanded(
                     child: Column(
                       children: [
-                        Expanded(child: widget.callType == "audio" ? _buildAudioContent() : _buildVideoContent()),
+                        // Video/Audio area
+                        Expanded(
+                          child: widget.callType == "audio"
+                              ? _buildAudioContent()
+                              : _buildVideoContent(),
+                        ),
+
+                        // Controls
                         Container(
                           height: 90,
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           decoration: BoxDecoration(
                             color: Colors.black87,
-                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(20),
+                            ),
                           ),
                           child: _buildControls(),
                         ),
@@ -164,74 +195,162 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Widget _buildAudioContent() {
-    final name = _participants.isNotEmpty ? _participants.first.identity : "Audio Call";
+    final name = _participants.isNotEmpty
+        ? _participants.first.identity
+        : "Audio Call";
 
-    return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Container(width: 120, height: 120, decoration: BoxDecoration(color: Colors.grey[800], shape: BoxShape.circle), child: const Icon(Icons.account_circle, color: Colors.white70, size: 80)),
-        const SizedBox(height: 24),
-        Text(name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-        const SizedBox(height: 8),
-        Text("Active Call", style: TextStyle(color: Colors.white70, fontSize: 16)),
-      ]),
+    return Container(
+      color: Colors.transparent,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.account_circle,
+                color: Colors.white70,
+                size: 80,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Active Call",
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildVideoContent() {
     final participants = _participants;
+
     if (participants.isEmpty) {
-      return Container(color: Colors.black, child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.video_call, color: Colors.white70, size: 80), SizedBox(height: 20), Text("Waiting for participants...", style: TextStyle(color: Colors.white, fontSize: 18))])) );
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.video_call, color: Colors.white70, size: 80),
+              SizedBox(height: 20),
+              Text(
+                "Waiting for participants...",
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Container(
       margin: const EdgeInsets.all(12),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final count = participants.length;
-        final columns = count == 1 ? 1 : 2;
-        final spacing = 12.0;
-        final itemWidth = (constraints.maxWidth - (columns - 1) * spacing) / columns;
-        final itemHeight = constraints.maxHeight * 0.48;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final count = participants.length;
+          final columns = count == 1 ? 1 : (count <= 4 ? 2 : 2);
+          final spacing = 12.0;
+          final itemWidth =
+              (constraints.maxWidth - (columns - 1) * spacing) / columns;
+          final itemHeight = constraints.maxHeight * 0.48;
 
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          alignment: WrapAlignment.center,
-          children: participants.map((participant) {
-            return SizedBox(width: itemWidth, height: itemHeight, child: ParticipantTile(participant: participant));
-          }).toList(),
-        );
-      }),
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            alignment: WrapAlignment.center,
+            children: participants.map((participant) {
+              return SizedBox(
+                width: itemWidth,
+                height: itemHeight,
+                child: ParticipantTile(participant: participant),
+              );
+            }).toList(),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildControls() {
-    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      _controlButton(icon: _isMicMuted ? Icons.mic_off : Icons.mic, onPressed: _toggleMic),
-      const SizedBox(width: 24),
-      GestureDetector(
-        onTap: _hangUp,
-        child: Container(width: 68, height: 68, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle), child: const Icon(Icons.call_end, color: Colors.white, size: 30)),
-      ),
-      const SizedBox(width: 24),
-      if (widget.callType == "video")
-        _controlButton(icon: _isCameraOff ? Icons.videocam_off : Icons.videocam, onPressed: _toggleCamera),
-    ]);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _controlButton(
+          icon: _isMicMuted ? Icons.mic_off : Icons.mic,
+          onPressed: _toggleMic,
+        ),
+        const SizedBox(width: 24),
+        GestureDetector(
+          onTap: _hangUp,
+          child: Container(
+            width: 68,
+            height: 68,
+            decoration: const BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.call_end, color: Colors.white, size: 30),
+          ),
+        ),
+        const SizedBox(width: 24),
+        if (widget.callType == "video")
+          _controlButton(
+            icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
+            onPressed: _toggleCamera,
+          ),
+      ],
+    );
   }
 
-  Widget _controlButton({required IconData icon, required VoidCallback onPressed}) {
-    return GestureDetector(onTap: onPressed, child: Container(width: 60, height: 60, decoration: BoxDecoration(color: Colors.grey[800], shape: BoxShape.circle), child: Icon(icon, color: Colors.white, size: 28)));
+  Widget _controlButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 28),
+      ),
+    );
   }
 }
 
 class ParticipantTile extends StatefulWidget {
   final Participant participant;
+
   const ParticipantTile({super.key, required this.participant});
+
   @override
   State<ParticipantTile> createState() => _ParticipantTileState();
 }
 
 class _ParticipantTileState extends State<ParticipantTile> {
-  TrackPublication? get _videoPub => widget.participant.videoTrackPublications.firstOrNull;
+  TrackPublication? get _videoPub =>
+      widget.participant.videoTrackPublications.firstOrNull;
 
   @override
   void initState() {
@@ -255,29 +374,66 @@ class _ParticipantTileState extends State<ParticipantTile> {
     final track = pub?.track;
     final hasVideo = pub != null && pub.subscribed && !pub.muted;
 
-    if (!hasVideo || track is! VideoTrack) return _buildPlaceholder();
+    if (!hasVideo || track is! VideoTrack) {
+      return _buildPlaceholder();
+    }
 
     return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white24)),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24),
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Stack(children: [
-          VideoTrackRenderer(track),
-          Positioned(
-            bottom: 8,
-            left: 8,
-            right: 8,
-            child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)), child: Text(widget.participant.identity, style: const TextStyle(color: Colors.white, fontSize: 14), overflow: TextOverflow.ellipsis)),
-          )
-        ]),
+        child: Stack(
+          children: [
+            VideoTrackRenderer(track),
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  widget.participant.identity,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPlaceholder() {
     return Container(
-      decoration: BoxDecoration(color: Colors.grey[900], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white24)),
-      child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.videocam_off, color: Colors.white60, size: 40), const SizedBox(height: 12), Text(widget.participant.identity, style: const TextStyle(color: Colors.white, fontSize: 16), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis)])),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.videocam_off, color: Colors.white60, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              widget.participant.identity,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

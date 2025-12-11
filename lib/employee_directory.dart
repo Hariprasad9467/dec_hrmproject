@@ -44,6 +44,7 @@ class EmployeeDirectoryPageState extends State<EmployeeDirectoryPage> {
     try {
       final response = await http.get(
         Uri.parse("$apiBaseUrl/api/employees"), // ✅ Use apiBaseUrl
+        //Uri.parse("https://zeai-project.onrender.com/api/employees"),
       );
 
       if (response.statusCode == 200) {
@@ -163,6 +164,7 @@ class _EmployeeGrid extends StatelessWidget {
             (imgPath != null &&
                 imgPath.toString().isNotEmpty) // ✅ Use apiBaseUrl
             ? "$apiBaseUrl/$imgPath"
+            // ? "https://zeai-project.onrender.com/$imgPath"
             : "";
 
         return _employeeCard(
@@ -207,35 +209,26 @@ class _EmployeeGrid extends StatelessWidget {
 
       // Connect caller to LiveKit and navigate
       try {
-  // 1. Fetch token from backend
-  final token = await LiveKitService.instance.fetchToken(
-    userId: loggedInId,
-    roomId: roomId,
-  );
-
-  // 2. Connect to LiveKit 
-  await LiveKitService.instance.connectToRoom(
-    serverUrl: livekitUrl,
-    token: token,
-    isVideo: isVideo,
-  );
-
-  // 3. Navigate 
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => CallScreen(
-        callType: isVideo ? "video" : "audio",
-      ),
-    ),
-  );
-} catch (e) {
-  debugPrint("❌ Failed to connect caller to LiveKit: $e");
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Failed to start call.")),
-  );
-}
-
+        await LiveKitService.instance.connectToRoom(
+          serverUrl: livekitUrl,
+          roomName: roomId,
+          userName: loggedInId,
+          isVideo: isVideo,
+        );
+        // Navigate on success
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            // ✅ FIX: Pass the correct callType to the CallScreen
+            builder: (_) => CallScreen(callType: isVideo ? "video" : "audio"),
+          ),
+        );
+      } catch (e) {
+        debugPrint("❌ Failed to connect caller to LiveKit: $e");
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Failed to start call.")));
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Error: Not connected to server.")),

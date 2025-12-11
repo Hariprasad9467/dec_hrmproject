@@ -1,5 +1,4 @@
 
-// deploy_hrm1/backend/routes/callSignaling.js
 const CallLog = require('../models/CallLog'); // optional for logging calls
 
 module.exports = function attachSignaling(server, app, opts = {}) {

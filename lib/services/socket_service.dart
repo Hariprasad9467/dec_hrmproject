@@ -1,6 +1,3 @@
-
-
-// lib/services/socket_service.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -24,7 +21,6 @@ class IncomingCall {
 class AppSocket {
   AppSocket._privateConstructor();
   static final AppSocket instance = AppSocket._privateConstructor();
-  bool isPopupOpen = false;
 
   late IO.Socket socket;
   String? loggedInUserId;
@@ -64,7 +60,9 @@ class AppSocket {
 
     socket.on('incoming-call', (data) {
       // Raw payload log (copy + paste this line if you still see problems)
-      debugPrint('📞 Received incoming-call raw payload: ${data.runtimeType} -> $data');
+      debugPrint(
+        '📞 Received incoming-call raw payload: ${data.runtimeType} -> $data',
+      );
 
       // Normalize raw json
       dynamic raw;
@@ -98,12 +96,28 @@ class AppSocket {
 
       if (raw is Map) {
         // room
-        roomId = _safe(raw, ['roomId', 'room_id', 'room', 'roomName']) ?? roomId;
+        roomId =
+            _safe(raw, ['roomId', 'room_id', 'room', 'roomName']) ?? roomId;
         // from / caller id
-        callerId = _safe(raw, ['fromUserId', 'from_user_id', 'from', 'callerId', 'caller_id', 'caller']) ?? callerId;
+        callerId =
+            _safe(raw, [
+              'fromUserId',
+              'from_user_id',
+              'from',
+              'callerId',
+              'caller_id',
+              'caller',
+            ]) ??
+            callerId;
 
         // Preferred explicit callerName
-        callerNameCandidate = _safe(raw, ['callerName', 'caller_name', 'caller', 'name', 'displayName']);
+        callerNameCandidate = _safe(raw, [
+          'callerName',
+          'caller_name',
+          'caller',
+          'name',
+          'displayName',
+        ]);
 
         // Some servers send "type": "audio" | "video" or "callType"
         final typeStr = _safe(raw, ['type', 'callType', 'call_type']);
@@ -132,8 +146,16 @@ class AppSocket {
             try {
               final parsedMeta = (meta is String) ? jsonDecode(meta) : meta;
               if (parsedMeta is Map) {
-                callerNameCandidate = _safe(parsedMeta, ['name', 'displayName', 'employeeName']);
-                final empId = _safe(parsedMeta, ['employeeId', 'employee_id', 'id']);
+                callerNameCandidate = _safe(parsedMeta, [
+                  'name',
+                  'displayName',
+                  'employeeName',
+                ]);
+                final empId = _safe(parsedMeta, [
+                  'employeeId',
+                  'employee_id',
+                  'id',
+                ]);
                 if (callerNameCandidate != null && empId != null) {
                   callerNameCandidate = '${callerNameCandidate} ($empId)';
                 }
@@ -141,7 +163,8 @@ class AppSocket {
                 callerNameCandidate = parsedMeta.trim();
               }
             } catch (_) {
-              if (meta is String && meta.trim().isNotEmpty) callerNameCandidate = meta.trim();
+              if (meta is String && meta.trim().isNotEmpty)
+                callerNameCandidate = meta.trim();
             }
           }
         }
@@ -149,14 +172,17 @@ class AppSocket {
         // non-map payload: string fallback
         final s = raw?.toString();
         if (s != null && s.isNotEmpty) {
-          if (s.contains('type=audio') || s.contains('callType=audio')) isVideo = false;
-          if (s.contains('type=video') || s.contains('callType=video')) isVideo = true;
+          if (s.contains('type=audio') || s.contains('callType=audio'))
+            isVideo = false;
+          if (s.contains('type=video') || s.contains('callType=video'))
+            isVideo = true;
           callerNameCandidate = s;
         }
       }
 
       // final fallback: use callerId as name if name missing
-      final callerName = (callerNameCandidate != null && callerNameCandidate.trim().isNotEmpty)
+      final callerName =
+          (callerNameCandidate != null && callerNameCandidate.trim().isNotEmpty)
           ? callerNameCandidate!
           : callerId;
 
@@ -176,7 +202,8 @@ class AppSocket {
     if (_isDialogShowing) return;
 
     final ctx =
-        navigatorKey.currentState?.overlay?.context ?? navigatorKey.currentContext;
+        navigatorKey.currentState?.overlay?.context ??
+        navigatorKey.currentContext;
 
     if (ctx == null) {
       if (attempt < _maxPopupRetries) {
@@ -193,24 +220,26 @@ class AppSocket {
     _isDialogShowing = true;
 
     showDialog<void>(
-      context: ctx,
-      barrierDismissible: false,
-      builder: (_) => IncomingCallScreen(
-        callerName: call.callerName,
-        callerId: call.callerId,
-        receiverId: loggedInUserId ?? '',
-        roomId: call.roomId,
-        isVideo: call.isVideo,
-        serverUrl: serverUrl ?? '',
-        userId: loggedInUserId ?? '',
-      ),
-    ).then((_) {
-      _isDialogShowing = false;
-      incomingCallNotifier.value = null;
-    }).catchError((err) {
-      _isDialogShowing = false;
-      debugPrint("❌ Error showing incoming call dialog: $err");
-    });
+          context: ctx,
+          barrierDismissible: false,
+          builder: (_) => IncomingCallScreen(
+            callerName: call.callerName,
+            callerId: call.callerId,
+            receiverId: loggedInUserId ?? '',
+            roomId: call.roomId,
+            isVideo: call.isVideo,
+            serverUrl: serverUrl ?? '',
+            userId: loggedInUserId ?? '',
+          ),
+        )
+        .then((_) {
+          _isDialogShowing = false;
+          incomingCallNotifier.value = null;
+        })
+        .catchError((err) {
+          _isDialogShowing = false;
+          debugPrint("❌ Error showing incoming call dialog: $err");
+        });
   }
 
   /// Outgoing call helper: include explicit fields so backend gets precise intent.

@@ -1,4 +1,5 @@
 const path = require("path");
+//require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 require("dotenv").config();
 
 const express = require("express");
@@ -36,7 +37,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const corsOptions = {
-  origin: "*",
+  origin: 
+    "*",
+  
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };

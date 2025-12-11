@@ -212,7 +212,7 @@ const String apiBaseUrl = "http://localhost:5000";
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// Web-specific viewport lock
+  // Web-specific: Prevent scrolling and set viewport constraints
   if (kIsWeb) {
     html.document.documentElement!.style.overflow = 'hidden';
     html.window.onResize.listen((_) {
@@ -222,9 +222,7 @@ Future<void> main() async {
 
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
-      ],
+      providers: [ChangeNotifierProvider(create: (_) => UserProvider())],
       child: const MyApp(),
     ),
   );
@@ -245,8 +243,30 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    /// Bind navigator key (used to show call popup)
+    // Set navigator key for socket service
     livekitService.setNavigatorKey(socketService.navigatorKey);
+
+    // Add listener for incoming calls
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      socketService.incomingCallNotifier.addListener(_handleIncomingCall);
+      debugPrint("🟢 Incoming call listener attached");
+    });
+  }
+
+  @override
+  void dispose() {
+    socketService.incomingCallNotifier.removeListener(_handleIncomingCall);
+    super.dispose();
+  }
+
+  void _handleIncomingCall() {
+    final call = socketService.incomingCallNotifier.value;
+    if (call == null) return;
+
+    debugPrint(
+      "🔔 Incoming call detected: ${call.callerName}, room: ${call.roomId}",
+    );
+    // Popup handled inside socket_service; this listener can be used for extra UI updates
   }
 
   @override
@@ -257,51 +277,6 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: socketService.navigatorKey,
       initialRoute: AppRoutes.login,
       routes: AppRoutes.getRoutes(context),
-
-      /// 🔥 This listens for incoming calls globally across the app
-      builder: (context, child) {
-        return Stack(
-          children: [
-            /// Main App UI
-            child!,
-
-            /// 🔔 Incoming Call Listener (Shows popup dialog)
-           ValueListenableBuilder(
-  valueListenable: AppSocket.instance.incomingCallNotifier,
-  builder: (_, call, __) {
-    if (call == null) return const SizedBox.shrink();
-
-    /// Prevent multiple popups
-    if (AppSocket.instance.isPopupOpen) return const SizedBox.shrink();
-    AppSocket.instance.isPopupOpen = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      showDialog(
-        context: AppSocket.instance.navigatorKey.currentContext!,
-        barrierDismissible: false,
-        builder: (_) => IncomingCallScreen(
-          callerName: call.callerName,
-          callerId: call.callerId,
-          receiverId: AppSocket.instance.loggedInUserId!,
-          roomId: call.roomId,
-          isVideo: call.isVideo,
-          serverUrl: AppSocket.instance.serverUrl!,
-          userId: AppSocket.instance.loggedInUserId!,
-        ),
-      ).then((_) {
-        /// Reset when popup is closed
-        AppSocket.instance.isPopupOpen = false;
-      });
-    });
-
-    AppSocket.instance.incomingCallNotifier.value = null;
-    return const SizedBox.shrink();
-  },
-)
-
-          ],
-        );
-      },
     );
   }
 }

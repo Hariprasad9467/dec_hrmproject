@@ -1,4 +1,3 @@
-// lib/screens/incoming_call_screen.dart
 import 'package:flutter/material.dart';
 import '../services/livekit_service.dart';
 import 'call_screen.dart';
@@ -34,70 +33,103 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
     setState(() => _isConnecting = true);
 
     try {
-      // 1) fetch token from backend
-      final token = await LiveKitService.instance.fetchToken(
-        userId: widget.userId,
-        roomId: widget.roomId,
-      );
-
-      // 2) connect using server URL + token
-      await LiveKitService.instance.connectToRoom(
-        serverUrl: widget.serverUrl,
-        token: token,
+      final lk = LiveKitService.instance;
+      await lk.connectToRoom(
+        roomName: widget.roomId,
+        userName: widget.userId,
         isVideo: widget.isVideo,
+        serverUrl: widget.serverUrl,
       );
-
-      debugPrint('✅ Receiver joined LiveKit room');
 
       if (!mounted) return;
 
-      // 3) close the incoming-call dialog before navigating
       Navigator.of(context).pop();
-
-      // 4) open call screen (CallScreen reads LiveKitService.instance.room)
-      Navigator.push(
-        context,
+      Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => CallScreen(
-            callType: widget.isVideo ? "video" : "audio",
-          ),
+          builder: (_) =>
+              CallScreen(callType: widget.isVideo ? "video" : "audio"),
         ),
       );
-    } catch (err, st) {
-      debugPrint('❌ Failed to join call: $err\n$st');
-
-      if (mounted) {
-        setState(() => _isConnecting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to join call")),
-        );
-      }
+    } catch (e) {
+      debugPrint('❌ Accept call failed: $e');
+      setState(() => _isConnecting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final titleIcon = widget.isVideo ? Icons.video_call : Icons.phone;
-    final titleText = widget.isVideo ? 'Video Call' : 'Audio Call';
-    final titleColor = widget.isVideo ? Colors.deepPurple : Colors.green;
+    // Video popup
+    if (widget.isVideo) {
+      return WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          title: Row(
+            children: const [
+              Icon(Icons.video_call, color: Colors.deepPurple),
+              SizedBox(width: 10),
+              Text('Video Call'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.callerName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "ID: ${widget.callerId}",
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              if (_isConnecting) const CircularProgressIndicator(),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Decline', style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: _isConnecting ? null : _acceptCall,
+              child: const Text('Accept'),
+            ),
+          ],
+        ),
+      );
+    }
 
+    // Audio popup (compact) — NO video controls shown
     return WillPopScope(
       onWillPop: () async => false,
       child: AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Row(
-          children: [
-            Icon(titleIcon, color: titleColor),
-            const SizedBox(width: 10),
-            Text(titleText),
+          children: const [
+            Icon(Icons.phone, color: Colors.green),
+            SizedBox(width: 10),
+            Text('Audio Call'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.callerName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+              widget.callerName,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
-            Text("ID: ${widget.callerId}", style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            Text(
+              "ID: ${widget.callerId}",
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
             const SizedBox(height: 12),
             if (_isConnecting) const CircularProgressIndicator(),
           ],

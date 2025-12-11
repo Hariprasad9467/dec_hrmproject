@@ -1,13 +1,12 @@
-// lib/services/livekit_service.dart
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import '../main.dart';
+import 'socket_service.dart';
 
-
-const String livekitUrl = "wss://hrm-rjvaayq4.livekit.cloud";  // optional fallback
+const String livekitUrl = "wss://hrmproj-drytrs6e.livekit.cloud";  // optional fallback
 
 class LiveKitService with ChangeNotifier {
   LiveKitService._internal();
@@ -22,36 +21,9 @@ class LiveKitService with ChangeNotifier {
   GlobalKey<NavigatorState>? navigatorKey;
   void setNavigatorKey(GlobalKey<NavigatorState> key) => navigatorKey = key;
 
-  // -------------------------
-  // Public token fetch (simple)
-  // -------------------------
-  Future<String> fetchToken({
-    required String userId,
-    required String roomId,
-  }) async {
-    final url = Uri.parse('$apiBaseUrl/api/get-livekit-token');
-
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'identity': userId, 'roomName': roomId}),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to fetch token: ${response.statusCode}');
-    }
-
-    final data = jsonDecode(response.body);
-    if (data == null || data['token'] == null) {
-      throw Exception('Invalid token response');
-    }
-
-    return data['token'] as String;
-  }
-
-  // -------------------------
-  // (Legacy internal) kept for backward compatibility
-  // -------------------------
+  /// -------------------------
+  /// Fetch LiveKit token from backend
+  /// -------------------------
   Future<String?> _fetchLiveKitToken({
     required String roomName,
     required String identity,
@@ -83,45 +55,84 @@ class LiveKitService with ChangeNotifier {
     return null;
   }
 
-  // -------------------------
-  // Connect to LiveKit using serverUrl + token
-  // -------------------------
+  /// -------------------------
+  /// Connect to a LiveKit room
+  /// -------------------------
   Future<void> connectToRoom({
-    required String serverUrl,
-    required String token,
+    required String roomName,
+    required String userName,
     required bool isVideo,
+    String? serverUrl,
   }) async {
     try {
-      final options = const RoomOptions(
-        adaptiveStream: true,
-        dynacast: true,
-       // autoSubscribe: true,
+      final token = await _fetchLiveKitToken(
+        roomName: roomName,
+        identity: userName,
+      );
+      if (token == null)
+        throw Exception('Could not fetch a valid LiveKit token.');
+
+      _isVideoCall = isVideo;
+      //final urlToUse = serverUrl ?? livekitUrl;
+      final urlToUse = livekitUrl; // serverUrl never overrides
+
+      _room = Room(
+        roomOptions: RoomOptions(adaptiveStream: true, dynacast: true),
       );
 
-      _room = Room(roomOptions: options);
+      await _room!.connect(urlToUse, token);
+      debugPrint('✅ Connected to LiveKit room: $roomName');
 
-      await _room!.connect(serverUrl, token);
-      _isVideoCall = isVideo;
-
-      // enable microphone and camera according to isVideo
-      await _room!.localParticipant?.setMicrophoneEnabled(true);
-      if (isVideo) {
-        await _room!.localParticipant?.setCameraEnabled(true);
-      } else {
-        await _room!.localParticipant?.setCameraEnabled(false);
+      // Ensure microphone is enabled (most calls assume audio present).
+      try {
+        await _room!.localParticipant?.setMicrophoneEnabled(true);
+      } catch (e) {
+        debugPrint('⚠️ setMicrophoneEnabled not available on this SDK: $e');
       }
 
-      debugPrint("✅ Connected to LiveKit room successfully.");
-      notifyListeners();
-    } catch (e, st) {
-      debugPrint("❌ Error connecting to LiveKit: $e\n$st");
+      // Publish tracks AFTER connecting, based on isVideo flag.
+      if (isVideo) {
+        try {
+          await _room!.localParticipant?.setCameraEnabled(true);
+        } catch (e) {
+          debugPrint('⚠️ setCameraEnabled(true) failed: $e');
+        }
+      } else {
+        // Audio-only: disable camera and mute any video tracks
+        try {
+          await _room!.localParticipant?.setCameraEnabled(false);
+        } catch (e) {
+          debugPrint('⚠️ setCameraEnabled(false) failed: $e');
+        }
+
+        try {
+          final pubs = _room!.localParticipant?.videoTrackPublications ?? [];
+          for (final pub in pubs) {
+            try {
+              try {
+                await (pub as dynamic).mute();
+              } catch (_) {
+                try {
+                  await (pub as dynamic).setMuted(true);
+                } catch (_) {}
+              }
+            } catch (_) {}
+          }
+        } catch (e) {
+          debugPrint('⚠️ could not mute video publications: $e');
+        }
+      }
+
+      notifyListeners(); // Notify UI that connection and tracks are set up.
+    } catch (e) {
+      debugPrint('❌ Failed to connect to room: $e');
       rethrow;
     }
   }
 
-  // -------------------------
-  // Toggle mic (wrapper)
-  // -------------------------
+  /// -------------------------
+  /// Toggle microphone
+  /// -------------------------
   Future<void> toggleMic() async {
     final lp = _room?.localParticipant;
     if (lp == null) return;
@@ -134,9 +145,9 @@ class LiveKitService with ChangeNotifier {
     notifyListeners();
   }
 
-  // -------------------------
-  // Toggle camera (wrapper)
-  // -------------------------
+  /// -------------------------
+  /// Toggle camera
+  /// -------------------------
   Future<void> toggleCamera() async {
     final lp = _room?.localParticipant;
     if (lp == null) return;
@@ -155,24 +166,28 @@ class LiveKitService with ChangeNotifier {
         final pubs = lp.videoTrackPublications ?? [];
         for (final pub in pubs) {
           try {
-            await (pub as dynamic).mute();
-          } catch (_) {
             try {
-              await (pub as dynamic).setMuted(true);
-            } catch (_) {}
-          }
+              await (pub as dynamic).mute();
+            } catch (_) {
+              try {
+                await (pub as dynamic).setMuted(true);
+              } catch (_) {}
+            }
+          } catch (_) {}
         }
       } catch (e) {
-        debugPrint('⚠️ Could not mute local video publications on camera toggle: $e');
+        debugPrint(
+          '⚠️ Could not mute local video publications on camera toggle: $e',
+        );
       }
     }
 
     notifyListeners();
   }
 
-  // -------------------------
-  // Disconnect
-  // -------------------------
+  /// -------------------------
+  /// Disconnect from the room
+  /// -------------------------
   Future<void> disconnect() async {
     if (_room != null) {
       try {
@@ -186,9 +201,9 @@ class LiveKitService with ChangeNotifier {
     notifyListeners();
   }
 
-  // -------------------------
-  // Remote participants
-  // -------------------------
+  /// -------------------------
+  /// Remote participants list
+  /// -------------------------
   List<RemoteParticipant> get remoteParticipants =>
       _room?.remoteParticipants.values.toList() ?? [];
 }
