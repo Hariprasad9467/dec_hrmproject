@@ -71,7 +71,7 @@ class _PerformanceReviewPageState extends State<PerformanceReviewPage> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://localhost:5000/api/employees/domain/$domain',
+          'https://dec-hrmproject.onrender.com/api/employees/domain/$domain',
         ),
       );
 
@@ -105,7 +105,7 @@ class _PerformanceReviewPageState extends State<PerformanceReviewPage> {
       return;
     }
 
-    final url = Uri.parse('http://localhost:5000/reviews');
+    final url = Uri.parse('https://dec-hrmproject.onrender.com/reviews');
     final reviewerName =
         Provider.of<UserProvider>(context, listen: false).employeeName ??
         'Admin';
@@ -138,7 +138,7 @@ class _PerformanceReviewPageState extends State<PerformanceReviewPage> {
 
         // 🔔 Create notifications
         final notifUrl = Uri.parse(
-          "http://localhost:5000/notifications",
+          "https://dec-hrmproject.onrender.com/notifications",
         );
         String currentMonth = getCurrentMonth();
         final userProvider = Provider.of<UserProvider>(context, listen: false);

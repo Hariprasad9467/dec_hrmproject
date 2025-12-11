@@ -54,7 +54,7 @@ class _SuperadminPerformancePageState extends State<SuperadminPerformancePage> {
 
       final response = await http.get(
         Uri.parse(
-          'http://localhost:5000/api/employees/for-review/$reviewerPosition',
+          'https://dec-hrmproject.onrender.com/api/employees/for-review/$reviewerPosition',
         ),
       );
 
@@ -106,7 +106,7 @@ class _SuperadminPerformancePageState extends State<SuperadminPerformancePage> {
       return;
     }
     
-    final url = Uri.parse('http://localhost:5000/reviews');
+    final url = Uri.parse('https://dec-hrmproject.onrender.com/reviews');
     final reviewerName =
         Provider.of<UserProvider>(context, listen: false).employeeName ??
         'Admin';
@@ -138,7 +138,7 @@ class _SuperadminPerformancePageState extends State<SuperadminPerformancePage> {
         );
 
         // 🔔 Create notifications
-        final notifUrl = Uri.parse("http://localhost:5000/notifications");
+        final notifUrl = Uri.parse("https://dec-hrmproject.onrender.com/notifications");
         String currentMonth = getCurrentMonth();
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         final adminName = userProvider.employeeName ?? 'Super Admin';

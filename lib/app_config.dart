@@ -1,5 +1,5 @@
 class AppConfig {
-  static const String baseUrl = 'http://localhost:5000';
+  static const String baseUrl = 'https://dec-hrmproject.onrender.com';
 
   // You can add other configuration variables here as needed
   // For example:

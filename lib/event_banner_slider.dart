@@ -52,7 +52,7 @@ class _EventBannerSliderState extends State<EventBannerSlider> {
 
       // --- Fetch employee birthdays & anniversaries ---
       final responseProfiles = await http.get(
-      Uri.parse('http://localhost:5000/profile'),
+      Uri.parse('https://dec-hrmproject.onrender.com/profile'),
       );
 
       // --- Fetch holidays for current month ---
@@ -73,7 +73,7 @@ class _EventBannerSliderState extends State<EventBannerSlider> {
 
       final responseHolidays = await http.get(
         Uri.parse(
-        'http://localhost:5000/notifications/holiday/employee/ALL?month=$currentMonthName',
+        'https://dec-hrmproject.onrender.com/notifications/holiday/employee/ALL?month=$currentMonthName',
         ),
       );
 

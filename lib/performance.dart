@@ -23,7 +23,7 @@ class _PerformanceState extends State<Performance> {
 
   Future<void> fetchPerformanceData() async {
     var url = Uri.parse(
-      'http://localhost:5000/perform/performance/all',
+      'https://dec-hrmproject.onrender.com/perform/performance/all',
     );
 
     try {

@@ -66,7 +66,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final employeeId =
         Provider.of<UserProvider>(context, listen: false).employeeId ?? '';
     var url = Uri.parse(
-      'http://localhost:5000/attendance/status/$employeeId',
+      'https://dec-hrmproject.onrender.com/attendance/status/$employeeId',
     );
 
     try {
@@ -149,7 +149,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         final employeeId =
             Provider.of<UserProvider>(context, listen: false).employeeId ?? '';
         final url = Uri.parse(
-          'http://localhost:5000/attendance/status/$employeeId',
+          'https://dec-hrmproject.onrender.com/attendance/status/$employeeId',
         );
         final response = await http.get(url);
 
@@ -234,7 +234,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final employeeId =
         Provider.of<UserProvider>(context, listen: false).employeeId ?? '';
     var url = Uri.parse(
-      'http://localhost:5000/attendance/mark/$employeeId',
+      'https://dec-hrmproject.onrender.com/attendance/mark/$employeeId',
     );
 
     var body = {
@@ -268,7 +268,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final employeeId =
         Provider.of<UserProvider>(context, listen: false).employeeId ?? '';
     var url = Uri.parse(
-      'http://localhost:5000/attendance/update/$employeeId',
+      'https://dec-hrmproject.onrender.com/attendance/update/$employeeId',
     );
 
     var body = {
@@ -305,7 +305,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final employeeId =
           Provider.of<UserProvider>(context, listen: false).employeeId ?? '';
       var url = Uri.parse(
-        'http://localhost:5000/attendance/history/$employeeId',
+        'https://dec-hrmproject.onrender.com/attendance/history/$employeeId',
       );
       var response = await http.get(url);
 
@@ -511,7 +511,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       try {
         var url = Uri.parse(
-          'https://deploy-hrm.onrender.com/attendance/update/$employeeId',
+          'https://dec-hrmproject.onrender.com/attendance/update/$employeeId',
         );
         var body = jsonEncode({
           'date': getCurrentDate(),
@@ -572,7 +572,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     try {
       var url = Uri.parse(
-        'https://deploy-hrm.onrender.com/attendance/update/$employeeId',
+        'https://dec-hrmproject.onrender.com/attendance/update/$employeeId',
       );
       var body = jsonEncode({
         'date': getCurrentDate(),

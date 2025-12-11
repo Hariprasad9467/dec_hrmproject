@@ -69,7 +69,7 @@ class _ApplyLeaveState extends State<ApplyLeave> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://localhost:5000/get-employee-name/$employeeId',
+          'https://dec-hrmproject.onrender.com/get-employee-name/$employeeId',
         ),
       );
 
@@ -90,7 +90,7 @@ class _ApplyLeaveState extends State<ApplyLeave> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://localhost:5000/apply/approvers/$employeeId',
+          'https://dec-hrmproject.onrender.com/apply/approvers/$employeeId',
         ),
       );
       if (response.statusCode == 200) {
@@ -200,8 +200,8 @@ class _ApplyLeaveState extends State<ApplyLeave> {
     final isEditing = widget.existingLeave != null;
     final leaveId = widget.existingLeave?['_id'];
     final url = isEditing
-        ? 'http://localhost:5000/apply/update/$employeeId/$leaveId'
-        : 'http://localhost:5000/apply/apply-leave';
+        ? 'https://dec-hrmproject.onrender.com/apply/update/$employeeId/$leaveId'
+        : 'https://dec-hrmproject.onrender.com/apply/apply-leave';
 
     final response = await (isEditing
         ? http.put(

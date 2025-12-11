@@ -58,7 +58,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5000/api/employees/$employeeId'),
+        Uri.parse('https://dec-hrmproject.onrender.com/api/employees/$employeeId'),
       );
 
       if (response.statusCode == 200) {
@@ -93,7 +93,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
 
       final year = DateTime.now().year;
       final url =
-          "http://localhost:5000/apply/leave-balance/$employeeId?year=$year";
+          "https://dec-hrmproject.onrender.com/apply/leave-balance/$employeeId?year=$year";
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
