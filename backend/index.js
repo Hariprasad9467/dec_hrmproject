@@ -37,9 +37,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const corsOptions = {
-  origin: 
-    "*",
-  
+  origin: [
+    "https://dechrm-project.netlify.app",
+    "https://dec-hrmproject.onrender.com",
+    "http://localhost:5000",
+  ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
