@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 import '../services/livekit_service.dart';
+import '../services/socket_service.dart';
 
 class CallScreen extends StatefulWidget {
   final String callType; // "audio" or "video"
@@ -85,8 +86,20 @@ class _CallScreenState extends State<CallScreen> {
     setState(() => _isCameraOff = !newState);
   }
 
-  Future<void> _hangUp() async {
+ Future<void> _hangUp() async {
+    // Notify the other user via Socket.IO
+    final roomId = _room?.name ?? '';
+    final participants = _room?.remoteParticipants.values.toList() ?? [];
+    if (participants.isNotEmpty) {
+      AppSocket.instance.socket.emit('end_call', {
+        'toUserId': participants.first.identity,
+        'roomId': roomId,
+      });
+    }
+
+    // Disconnect from LiveKit
     await LiveKitService.instance.disconnect();
+
     if (mounted) Navigator.pop(context);
   }
 

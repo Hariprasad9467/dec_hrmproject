@@ -36,6 +36,7 @@ class AppSocket {
   static const int _maxPopupRetries = 6;
   static const Duration _popupRetryDelay = Duration(milliseconds: 500);
 
+  /// Initialize Socket.IO connection
   void init(String serverUrl, String userId) {
     this.serverUrl = serverUrl;
     loggedInUserId = userId;
@@ -58,13 +59,12 @@ class AppSocket {
 
     socket.onError((data) => debugPrint("❌ Socket error: $data"));
 
+    /// ------------------ Incoming call ------------------
     socket.on('incoming-call', (data) {
-      // Raw payload log (copy + paste this line if you still see problems)
       debugPrint(
         '📞 Received incoming-call raw payload: ${data.runtimeType} -> $data',
       );
 
-      // Normalize raw json
       dynamic raw;
       try {
         raw = (data is String) ? jsonDecode(data) : data;
@@ -72,13 +72,11 @@ class AppSocket {
         raw = data;
       }
 
-      // Defaults
       String roomId = 'unknown_room';
       String callerId = 'unknown_caller';
       String? callerNameCandidate;
       bool isVideo = false;
 
-      // Helper to safely read fields
       String? _safe(dynamic src, List<String> keys) {
         try {
           if (src is Map) {
@@ -95,12 +93,8 @@ class AppSocket {
       }
 
       if (raw is Map) {
-        // room
-        roomId =
-            _safe(raw, ['roomId', 'room_id', 'room', 'roomName']) ?? roomId;
-        // from / caller id
-        callerId =
-            _safe(raw, [
+        roomId = _safe(raw, ['roomId', 'room_id', 'room', 'roomName']) ?? roomId;
+        callerId = _safe(raw, [
               'fromUserId',
               'from_user_id',
               'from',
@@ -110,7 +104,6 @@ class AppSocket {
             ]) ??
             callerId;
 
-        // Preferred explicit callerName
         callerNameCandidate = _safe(raw, [
           'callerName',
           'caller_name',
@@ -119,7 +112,6 @@ class AppSocket {
           'displayName',
         ]);
 
-        // Some servers send "type": "audio" | "video" or "callType"
         final typeStr = _safe(raw, ['type', 'callType', 'call_type']);
         if (typeStr != null) {
           final t = typeStr.toLowerCase();
@@ -127,7 +119,6 @@ class AppSocket {
           if (t.contains('video')) isVideo = true;
         }
 
-        // If `isVideo` exists as boolean or string/number
         final rawIsVideo = raw['isVideo'] ?? raw['is_video'] ?? raw['video'];
         if (rawIsVideo != null) {
           if (rawIsVideo is bool) {
@@ -139,7 +130,6 @@ class AppSocket {
           }
         }
 
-        // If callerName still null, try metadata fields or nested payload
         if (callerNameCandidate == null) {
           final meta = raw['metadata'] ?? raw['meta'] ?? raw['payload'];
           if (meta != null) {
@@ -169,7 +159,6 @@ class AppSocket {
           }
         }
       } else {
-        // non-map payload: string fallback
         final s = raw?.toString();
         if (s != null && s.isNotEmpty) {
           if (s.contains('type=audio') || s.contains('callType=audio'))
@@ -180,11 +169,10 @@ class AppSocket {
         }
       }
 
-      // final fallback: use callerId as name if name missing
       final callerName =
           (callerNameCandidate != null && callerNameCandidate.trim().isNotEmpty)
-          ? callerNameCandidate!
-          : callerId;
+              ? callerNameCandidate!
+              : callerId;
 
       final call = IncomingCall(
         callerName: callerName,
@@ -196,14 +184,32 @@ class AppSocket {
       incomingCallNotifier.value = call;
       _attemptShowPopup(call, 0);
     });
+
+    /// ------------------ Call ended ------------------
+    socket.on('call_ended', (data) {
+      final roomId = data['roomId'] ?? '';
+      debugPrint('❌ Received call_ended for room $roomId');
+
+      // Close any open call screen automatically
+      if (navigatorKey.currentState?.canPop() ?? false) {
+        navigatorKey.currentState?.pop(); // closes CallScreen or IncomingCallScreen
+      }
+
+      // Optionally show a SnackBar
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(content: Text('Call ended by other participant')),
+        );
+      }
+    });
   }
 
   void _attemptShowPopup(IncomingCall call, int attempt) {
     if (_isDialogShowing) return;
 
     final ctx =
-        navigatorKey.currentState?.overlay?.context ??
-        navigatorKey.currentContext;
+        navigatorKey.currentState?.overlay?.context ?? navigatorKey.currentContext;
 
     if (ctx == null) {
       if (attempt < _maxPopupRetries) {
@@ -242,7 +248,7 @@ class AppSocket {
         });
   }
 
-  /// Outgoing call helper: include explicit fields so backend gets precise intent.
+  /// Outgoing call helper
   void callUser({
     required String toUserId,
     required String fromUserId,
@@ -258,7 +264,6 @@ class AppSocket {
       'callType': isVideo ? 'video' : 'audio',
       'callerName': callerName ?? fromUserId,
       'callerId': fromUserId,
-      // small metadata object for robustness with varied backends
       'metadata': {'name': callerName ?? fromUserId, 'id': fromUserId},
     };
 

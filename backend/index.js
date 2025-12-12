@@ -170,6 +170,22 @@ io.on("connection", (socket) => {
   socket.on("ice-candidate", ({ toSocketId, candidate }) => {
     io.to(toSocketId).emit("ice-candidate", { fromSocket: socket.id, candidate });
   });
+   // ✅ NEW: End call event
+  socket.on("end_call", (data) => {
+    const { toUserId, roomId } = data || {};
+    if (toUserId) {
+      emitToUser(toUserId, "call_ended", { roomId });
+      console.log(`❌ Call ended signal sent to ${toUserId} for room ${roomId}`);
+    }
+  });
+
+  // Messages
+  socket.on("send-message", (data) => {
+    const { toUserId, message, fromUserId } = data || {};
+    if (!toUserId || !message || !fromUserId) return;
+    emitToUser(toUserId, "new-message", { fromUserId, message });
+  });
+  
 });
 
 // Middleware to extract user identity from headers
