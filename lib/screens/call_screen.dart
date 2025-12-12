@@ -86,20 +86,50 @@ class _CallScreenState extends State<CallScreen> {
   }
 
 Future<void> _hangUp() async {
+  // Gather identifying info in a robust way
   final roomId = _room?.name ?? '';
-  final toUserId = _room?.remoteParticipants.values.first.identity;
+  final fromUserId = _room?.localParticipant?.identity ?? '';
+  final toUserIds = _room?.remoteParticipants.values
+          .map((p) => p.identity)
+          .where((id) => id != null && id.isNotEmpty)
+          .toList() ??
+      [];
 
-  if (toUserId != null && toUserId.isNotEmpty) {
+  // Emit a robust end_call payload. Server implementations vary; this covers many shapes.
+  try {
     AppSocket.instance.socket.emit('end_call', {
-      'toUserId': toUserId,
       'roomId': roomId,
+      'fromUserId': fromUserId,
+      // server might accept a single toUserId or an array of toUserIds
+      'toUserIds': toUserIds,
+      'toUserId': toUserIds.isNotEmpty ? toUserIds.first : null,
     });
+  } catch (e) {
+    debugPrint('⚠️ Failed to emit end_call: $e');
   }
 
-  await LiveKitService.instance.disconnect();
+  // Ensure LiveKit is disconnected
+  try {
+    await LiveKitService.instance.disconnect();
+  } catch (e) {
+    debugPrint('⚠️ LiveKit disconnect failed on hangup: $e');
+  }
 
-  if (mounted) Navigator.pop(context);
+  // Clear any incoming-call notifier (so popup won't reappear)
+  try {
+    AppSocket.instance.incomingCallNotifier.value = null;
+  } catch (_) {}
+
+  // Close this screen if possible.
+  if (mounted) {
+    try {
+      Navigator.of(context).pop();
+    } catch (e) {
+      debugPrint('⚠️ Navigator pop failed after hangup: $e');
+    }
+  }
 }
+
 
 
   @override

@@ -189,24 +189,48 @@ class AppSocket {
 
   /// END CALL LISTENER — ADDED CORRECTLY HERE
     /// ---------------------------------------------------------
-    socket.on('end_call', (data) async {
-      debugPrint("🔴 Received end_call event: $data");
+    // Robust end_call handler
+socket.on('end_call', (data) async {
+  debugPrint("🔴 Received end_call event: $data");
 
-      // 1. Disconnect LiveKit
-      await LiveKitService.instance.disconnect();
+  // 1) Always attempt to disconnect LiveKit (safe to call if already disconnected)
+  try {
+    await LiveKitService.instance.disconnect();
+  } catch (e) {
+    debugPrint('⚠️ LiveKit disconnect threw in end_call handler: $e');
+  }
 
-      // 2. Close call screen
-      final nav = navigatorKey.currentState;
-      if (nav != null && nav.canPop()) {
+  // 2) Clear incoming call notifier so any popup UI will not re-open.
+  try {
+    incomingCallNotifier.value = null;
+  } catch (_) {}
+
+  // 3) Close incoming popup if showing and then try to close call screens.
+  final nav = navigatorKey.currentState;
+  if (nav != null) {
+    // Close dialog if it's showing
+    if (_isDialogShowing) {
+      try {
+        // .pop() may remove the AlertDialog
+        nav.pop();
+      } catch (e) {
+        debugPrint('⚠️ Failed to pop incoming-call dialog: $e');
+      }
+      _isDialogShowing = false;
+    }
+
+    // Try to pop call screens if present. We attempt to pop until we return to a stable route.
+    try {
+      // Pop once if possible to remove a CallScreen. We loop only a few times to avoid popping app root unintentionally.
+      for (int i = 0; i < 6 && nav.canPop(); i++) {
         nav.pop();
       }
+    } catch (e) {
+      debugPrint('⚠️ Error while popping call screens: $e');
+    }
+  }
+});
 
-      // 3. Close incoming popup
-      if (_isDialogShowing) {
-        _isDialogShowing = false;
-        nav?.pop();
-      }
-    });
 
   }
 

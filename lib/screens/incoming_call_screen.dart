@@ -60,14 +60,22 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   }
 
   // ------------------- DECLINE CALL -------------------
-  void _declineCall() {
+ void _declineCall() {
+  try {
     AppSocket.instance.socket.emit('end_call', {
-      'toUserId': widget.callerId,
       'roomId': widget.roomId,
+      'fromUserId': widget.receiverId, // this is the receiver who declined
+      'toUserId': widget.callerId,
+      'toUserIds': [widget.callerId],
     });
-
-    Navigator.of(context).pop(); // Close popup
+  } catch (e) {
+    debugPrint('⚠️ Failed to emit end_call on decline: $e');
   }
+
+  // Close popup
+  Navigator.of(context).pop();
+}
+
 
   @override
   Widget build(BuildContext context) {
