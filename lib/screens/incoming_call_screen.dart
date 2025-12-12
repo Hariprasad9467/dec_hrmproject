@@ -39,7 +39,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
 
       await lk.connectToRoom(
         roomName: widget.roomId,
-        userName: widget.userId,
+        userName: widget.receiverId,
         isVideo: widget.isVideo,
         serverUrl: widget.serverUrl,
       );

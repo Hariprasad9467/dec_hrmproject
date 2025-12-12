@@ -74,7 +74,8 @@ class LiveKitService with ChangeNotifier {
 
       _isVideoCall = isVideo;
       //final urlToUse = serverUrl ?? livekitUrl;
-      final urlToUse = livekitUrl; // serverUrl never overrides
+      final urlToUse = serverUrl ?? livekitUrl;
+
 
       _room = Room(
         roomOptions: RoomOptions(adaptiveStream: true, dynacast: true),
