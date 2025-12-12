@@ -86,22 +86,22 @@ class _CallScreenState extends State<CallScreen> {
     setState(() => _isCameraOff = !newState);
   }
 
- Future<void> _hangUp() async {
-    // Notify the other user via Socket.IO
-    final roomId = _room?.name ?? '';
-    final participants = _room?.remoteParticipants.values.toList() ?? [];
-    if (participants.isNotEmpty) {
-      AppSocket.instance.socket.emit('end_call', {
-        'toUserId': participants.first.identity,
-        'roomId': roomId,
-      });
-    }
+Future<void> _hangUp() async {
+  final roomId = _room?.name ?? '';
+  final toUserId = _room?.remoteParticipants.values.first.identity;
 
-    // Disconnect from LiveKit
-    await LiveKitService.instance.disconnect();
-
-    if (mounted) Navigator.pop(context);
+  if (toUserId != null && toUserId.isNotEmpty) {
+    AppSocket.instance.socket.emit('end_call', {
+      'toUserId': toUserId,
+      'roomId': roomId,
+    });
   }
+
+  await LiveKitService.instance.disconnect();
+
+  if (mounted) Navigator.pop(context);
+}
+
 
   @override
   Widget build(BuildContext context) {

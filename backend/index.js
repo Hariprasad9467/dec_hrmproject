@@ -172,12 +172,17 @@ io.on("connection", (socket) => {
   });
    // ✅ NEW: End call event
   socket.on("end_call", (data) => {
-    const { toUserId, roomId } = data || {};
-    if (toUserId) {
-      emitToUser(toUserId, "call_ended", { roomId });
-      console.log(`❌ Call ended signal sent to ${toUserId} for room ${roomId}`);
-    }
-  });
+  const { toUserId, roomId } = data || {};
+  if (!toUserId || !roomId) return;
+
+  // Notify the other participant
+  const sent = emitToUser(toUserId, "call_ended", { roomId });
+  console.log(`❌ Call ended signal sent to ${toUserId} for room ${roomId}`);
+
+  // Optionally notify the sender too
+  socket.emit("call_ended", { roomId });
+});
+
 
   // Messages
   socket.on("send-message", (data) => {
@@ -185,7 +190,7 @@ io.on("connection", (socket) => {
     if (!toUserId || !message || !fromUserId) return;
     emitToUser(toUserId, "new-message", { fromUserId, message });
   });
-  
+
 });
 
 // Middleware to extract user identity from headers

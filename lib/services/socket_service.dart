@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../screens/incoming_call_screen.dart';
+import '../services/livekit_service.dart';
+
 
 class IncomingCall {
   final String callerName;
@@ -186,23 +188,18 @@ class AppSocket {
     });
 
     /// ------------------ Call ended ------------------
-    socket.on('call_ended', (data) {
-      final roomId = data['roomId'] ?? '';
-      debugPrint('❌ Received call_ended for room $roomId');
+    socket.on('end_call', (data) async {
+  debugPrint("🔴 end_call received: $data");
 
-      // Close any open call screen automatically
-      if (navigatorKey.currentState?.canPop() ?? false) {
-        navigatorKey.currentState?.pop(); // closes CallScreen or IncomingCallScreen
-      }
+  await LiveKitService.instance.disconnect();
 
-      // Optionally show a SnackBar
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null) {
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          const SnackBar(content: Text('Call ended by other participant')),
-        );
-      }
-    });
+  final nav = navigatorKey.currentState;
+  if (nav != null && nav.canPop()) {
+    nav.pop();
+    }
+   });
+
+
   }
 
   void _attemptShowPopup(IncomingCall call, int attempt) {

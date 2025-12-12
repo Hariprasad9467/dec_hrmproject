@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/livekit_service.dart';
+import '../services/socket_service.dart';
 import 'call_screen.dart';
 
 class IncomingCallScreen extends StatefulWidget {
@@ -29,11 +30,13 @@ class IncomingCallScreen extends StatefulWidget {
 class _IncomingCallScreenState extends State<IncomingCallScreen> {
   bool _isConnecting = false;
 
+  // ------------------- ACCEPT CALL -------------------
   Future<void> _acceptCall() async {
     setState(() => _isConnecting = true);
 
     try {
       final lk = LiveKitService.instance;
+
       await lk.connectToRoom(
         roomName: widget.roomId,
         userName: widget.userId,
@@ -43,7 +46,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
 
       if (!mounted) return;
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // Close popup
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) =>
@@ -56,9 +59,19 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
     }
   }
 
+  // ------------------- DECLINE CALL -------------------
+  void _declineCall() {
+    AppSocket.instance.socket.emit('end_call', {
+      'toUserId': widget.callerId,
+      'roomId': widget.roomId,
+    });
+
+    Navigator.of(context).pop(); // Close popup
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Video popup
+    // ------------------- VIDEO CALL POPUP -------------------
     if (widget.isVideo) {
       return WillPopScope(
         onWillPop: () async => false,
@@ -94,7 +107,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: _declineCall,
               child: const Text('Decline', style: TextStyle(color: Colors.red)),
             ),
             ElevatedButton(
@@ -106,7 +119,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
       );
     }
 
-    // Audio popup (compact) — NO video controls shown
+    // ------------------- AUDIO CALL POPUP -------------------
     return WillPopScope(
       onWillPop: () async => false,
       child: AlertDialog(
@@ -136,7 +149,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: _declineCall,
             child: const Text('Decline', style: TextStyle(color: Colors.red)),
           ),
           ElevatedButton(
