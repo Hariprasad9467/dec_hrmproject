@@ -187,18 +187,26 @@ class AppSocket {
       _attemptShowPopup(call, 0);
     });
 
-    /// ------------------ Call ended ------------------
+  /// END CALL LISTENER — ADDED CORRECTLY HERE
+    /// ---------------------------------------------------------
     socket.on('end_call', (data) async {
-  debugPrint("🔴 end_call received: $data");
+      debugPrint("🔴 Received end_call event: $data");
 
-  await LiveKitService.instance.disconnect();
+      // 1. Disconnect LiveKit
+      await LiveKitService.instance.disconnect();
 
-  final nav = navigatorKey.currentState;
-  if (nav != null && nav.canPop()) {
-    nav.pop();
-    }
-   });
+      // 2. Close call screen
+      final nav = navigatorKey.currentState;
+      if (nav != null && nav.canPop()) {
+        nav.pop();
+      }
 
+      // 3. Close incoming popup
+      if (_isDialogShowing) {
+        _isDialogShowing = false;
+        nav?.pop();
+      }
+    });
 
   }
 
