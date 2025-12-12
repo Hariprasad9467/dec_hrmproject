@@ -11,7 +11,6 @@ class CallScreen extends StatefulWidget {
   @override
   State<CallScreen> createState() => _CallScreenState();
 }
-
 class _CallScreenState extends State<CallScreen> {
   Room? get _room => LiveKitService.instance.room;
   EventsListener? _listener;
